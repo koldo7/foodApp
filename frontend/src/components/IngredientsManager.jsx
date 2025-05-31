@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const successStyle = { color: 'green', marginBottom: 10, background: '#e6ffe6', padding: 8, borderRadius: 6, border: '1px solid #b2ffb2' };
 const errorStyle = { color: 'red', marginBottom: 10, background: '#ffe6e6', padding: 8, borderRadius: 6, border: '1px solid #ffb2b2' };
 
 export default function IngredientsManager({ onBack, onLogout }) {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [ingredients, setIngredients] = useState([]);
   const [form, setForm] = useState({ name: '', unit: '', category: '', stock: '' });
   const [editId, setEditId] = useState(null);
@@ -90,6 +94,15 @@ export default function IngredientsManager({ onBack, onLogout }) {
     (ing.category || '').toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const handleBack = () => {
+    navigate('/');
+  };
+
   console.log('Rendering IngredientsManager component');
 
   return (
@@ -97,8 +110,18 @@ export default function IngredientsManager({ onBack, onLogout }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>Ingredientes</h2>
         <div>
-          <button onClick={onBack} style={{ marginRight: 8, background: '#e3e8f0', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}>Volver</button>
-          <button onClick={onLogout} style={{ background: '#e3e8f0', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}>Cerrar sesión</button>
+          <button
+            onClick={handleBack}
+            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            Volver
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            Cerrar sesión
+          </button>
         </div>
       </div>
       <form onSubmit={handleSubmit} style={{ marginBottom: 20, background: '#f9f9f9', padding: 16, borderRadius: 10, boxShadow: '0 2px 8px #e3e8f0' }}>

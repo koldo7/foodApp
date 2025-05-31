@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext';
 
 const SLOTS = ['Desayuno', 'Almuerzo', 'Merienda', 'Cena'];
 
+const successStyle = { color: 'green', marginBottom: 10, background: '#e6ffe6', padding: 8, borderRadius: 6, border: '1px solid #b2ffb2' };
+const errorStyle = { color: 'red', marginBottom: 10, background: '#ffe6e6', padding: 8, borderRadius: 6, border: '1px solid #ffb2b2' };
+
 function getMonday(d) {
   d = new Date(d);
   var day = d.getDay(), diff = d.getDate() - day + (day === 0 ? -6 : 1);
@@ -186,84 +189,80 @@ const Planner = () => {
   console.log('Planner: Rendering table with data:', { mealPlans, dishes });
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Planificador Semanal</h1>
-        <div className="space-x-4">
+    <div style={{ maxWidth: 1200, margin: '30px auto', fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>Planificador Semanal</h2>
+        <div>
           <button
             onClick={handleManageIngredients}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Gestionar Ingredientes
           </button>
           <button
             onClick={handleManageDishes}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Gestionar Platos
           </button>
           <button
             onClick={handleViewShoppingList}
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
+            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Lista de la Compra
           </button>
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Cerrar sesión
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          {success}
-        </div>
+      {(error || success) && (
+        <div style={error ? errorStyle : successStyle}>{error || success}</div>
       )}
 
       {/* Contenido del planificador semanal */}
-      <div className="overflow-x-auto">
-        <table className="w-full bg-white rounded-lg shadow-md border-collapse">
-          <thead>
+      <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #e3e8f0', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead style={{ background: '#e3e8f0' }}>
             <tr>
-              <th className="text-left p-4 border-b-2">Día</th>
-              {SLOTS.map(slot => <th key={slot} className="text-left p-4 border-b-2">{slot}</th>)}
+              <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #bfc8e6' }}>Día</th>
+              {SLOTS.map(slot => (
+                <th key={slot} style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #bfc8e6' }}>{slot}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {weekDates.map(date => (
-              <tr key={date} className="border-b last:border-b-0">
-                <td className="p-4 font-semibold">{date}</td>
+              <tr key={date} style={{ borderBottom: '1px solid #e3e8f0' }}>
+                <td style={{ padding: '12px', fontWeight: 'bold', background: '#f9f9f9' }}>{date}</td>
                 {SLOTS.map(slot => {
                   const meal = getMeal(date, slot);
                   return (
-                    <td key={slot} className="p-4 min-w-[180px]">
+                    <td key={slot} style={{ padding: '12px', minWidth: '180px', background: '#fff' }}>
                       {meal ? (
-                        <div className="flex flex-col space-y-2">
-                          <div className="font-medium">{meal.dish_name}</div>
-                          <div className="text-sm text-gray-600">{meal.servings} persona(s)</div>
-                          {meal.notes && <div className="text-xs text-gray-500 italic">{meal.notes}</div>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ fontWeight: 'medium' }}>{meal.dish_name}</div>
+                          <div style={{ fontSize: '0.875rem', color: '#666' }}>{meal.servings} persona(s)</div>
+                          {meal.notes && (
+                            <div style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>{meal.notes}</div>
+                          )}
                           <button
                             onClick={() => handleDeleteMeal(meal.id)}
-                            className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors self-start"
+                            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', alignSelf: 'flex-start' }}
                           >
                             Eliminar
                           </button>
                         </div>
                       ) : (
-                        <div className="flex flex-col space-y-2">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           <select
                             value={newMeal[`${date}-${slot}`]?.dish_id || ''}
                             onChange={e => setNewMeal({ ...newMeal, [`${date}-${slot}`]: { ...newMeal[`${date}-${slot}`], dish_id: e.target.value } })}
-                            className="border rounded p-1 text-sm w-full"
+                            style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: '6px', width: '100%' }}
                           >
                             <option value="">--Seleccionar Plato--</option>
                             {dishes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -273,12 +272,12 @@ const Planner = () => {
                             min={1}
                             value={newMeal[`${date}-${slot}`]?.servings || ''}
                             onChange={e => setNewMeal({ ...newMeal, [`${date}-${slot}`]: { ...newMeal[`${date}-${slot}`], servings: parseInt(e.target.value) || 1 } })}
-                            className="border rounded p-1 text-sm w-full"
+                            style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: '6px', width: '100%' }}
                             placeholder="Nº raciones"
                           />
                           <button
                             onClick={() => handleAddMeal(date, slot)}
-                            className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 transition-colors self-start"
+                            style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', alignSelf: 'flex-start' }}
                           >
                             Añadir
                           </button>
