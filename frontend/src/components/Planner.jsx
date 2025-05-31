@@ -148,7 +148,7 @@ const Planner = () => {
       console.log('Adding meal:', { date, slot, dish_id, servings });
       const response = await axios.post('/api/meal-plan', { date, slot, dish_id, servings });
       console.log('Meal added successfully:', response.data);
-      setNewMeal({ ...newMeal, [`${date}-${slot}`]: {} });
+      setNewMeal({ ...newMeal, [`${date}-${slot}`]: { dish_id: '', servings: '' } });
       fetchMealPlans();
       setSuccess('Comida añadida al planificador.');
     } catch (err) {
@@ -172,7 +172,7 @@ const Planner = () => {
   };
 
   const getMeal = (date, slot) =>
-    mealPlans.find(m => m.date === date && m.slot === slot);
+    mealPlans.filter(m => m.date === date && m.slot === slot);
 
   if (loading) {
     console.log('Planner: Still loading, showing loading message');
@@ -240,29 +240,57 @@ const Planner = () => {
               <tr key={date} style={{ borderBottom: '1px solid #e3e8f0' }}>
                 <td style={{ padding: '12px', fontWeight: 'bold', background: '#f9f9f9' }}>{date}</td>
                 {SLOTS.map(slot => {
-                  const meal = getMeal(date, slot);
+                  const meals = getMeal(date, slot);
                   return (
                     <td key={slot} style={{ padding: '12px', minWidth: '180px', background: '#fff' }}>
-                      {meal ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ fontWeight: 'medium' }}>{meal.dish_name}</div>
-                          <div style={{ fontSize: '0.875rem', color: '#666' }}>{meal.servings} persona(s)</div>
-                          {meal.notes && (
-                            <div style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>{meal.notes}</div>
-                          )}
-                          <button
-                            onClick={() => handleDeleteMeal(meal.id)}
-                            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', alignSelf: 'flex-start' }}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {/* Lista de platos existentes */}
+                        {meals.map(meal => (
+                          <div key={meal.id} style={{ 
+                            padding: '8px', 
+                            background: '#f9f9f9', 
+                            borderRadius: '6px',
+                            border: '1px solid #e3e8f0'
+                          }}>
+                            <div style={{ fontWeight: 'medium' }}>{meal.dish_name}</div>
+                            <div style={{ fontSize: '0.875rem', color: '#666' }}>{meal.servings} persona(s)</div>
+                            {meal.notes && (
+                              <div style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>{meal.notes}</div>
+                            )}
+                            <button
+                              onClick={() => handleDeleteMeal(meal.id)}
+                              style={{ 
+                                background: '#e57373', 
+                                color: '#fff', 
+                                border: 'none', 
+                                borderRadius: 6, 
+                                padding: '6px 14px', 
+                                cursor: 'pointer', 
+                                marginTop: '8px' 
+                              }}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* Formulario para añadir nuevo plato */}
+                        <div style={{ 
+                          padding: '8px', 
+                          background: '#f0f4ff', 
+                          borderRadius: '6px',
+                          border: '1px dashed #bfc8e6'
+                        }}>
                           <select
                             value={newMeal[`${date}-${slot}`]?.dish_id || ''}
                             onChange={e => setNewMeal({ ...newMeal, [`${date}-${slot}`]: { ...newMeal[`${date}-${slot}`], dish_id: e.target.value } })}
-                            style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: '6px', width: '100%' }}
+                            style={{ 
+                              borderRadius: 6, 
+                              border: '1px solid #bfc8e6', 
+                              padding: '6px', 
+                              width: '100%',
+                              marginBottom: '8px'
+                            }}
                           >
                             <option value="">--Seleccionar Plato--</option>
                             {dishes.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -272,17 +300,31 @@ const Planner = () => {
                             min={1}
                             value={newMeal[`${date}-${slot}`]?.servings || ''}
                             onChange={e => setNewMeal({ ...newMeal, [`${date}-${slot}`]: { ...newMeal[`${date}-${slot}`], servings: parseInt(e.target.value) || 1 } })}
-                            style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: '6px', width: '100%' }}
+                            style={{ 
+                              borderRadius: 6, 
+                              border: '1px solid #bfc8e6', 
+                              padding: '6px', 
+                              width: '100%',
+                              marginBottom: '8px'
+                            }}
                             placeholder="Nº raciones"
                           />
                           <button
                             onClick={() => handleAddMeal(date, slot)}
-                            style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', alignSelf: 'flex-start' }}
+                            style={{ 
+                              background: '#2a3d66', 
+                              color: '#fff', 
+                              border: 'none', 
+                              borderRadius: 6, 
+                              padding: '6px 14px', 
+                              cursor: 'pointer',
+                              width: '100%'
+                            }}
                           >
-                            Añadir
+                            Añadir Plato
                           </button>
                         </div>
-                      )}
+                      </div>
                     </td>
                   );
                 })}
