@@ -202,7 +202,21 @@ export default function DishesManager() {
           <input name="photo" placeholder="URL foto" value={form.photo} onChange={handleChange} style={{ width: 180, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
         </div>
         <textarea name="description" placeholder="Descripción" value={form.description} onChange={handleChange} style={{ width: '99%', marginTop: 8, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-        <textarea name="instructions" placeholder="Instrucciones" value={form.instructions} onChange={handleChange} style={{ width: '99%', marginTop: 8, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} required />
+        <textarea 
+          name="instructions" 
+          placeholder="Instrucciones" 
+          value={form.instructions} 
+          onChange={handleChange} 
+          style={{
+            width: '99%', 
+            marginTop: 8, 
+            borderRadius: 6, 
+            border: '1px solid #bfc8e6', 
+            padding: 6,
+            minHeight: '150px'
+          }}
+          required 
+        />
         <div style={{ marginTop: 8 }}>
           <button type="submit" style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}>{editId ? 'Actualizar' : 'Añadir'}</button>
           {editId && <button type="button" onClick={() => { setEditId(null); setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' }); setDishIngredients([]); }} style={{ marginLeft: 8, background: '#e3e8f0', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}>Cancelar</button>}
