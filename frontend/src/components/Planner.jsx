@@ -308,7 +308,8 @@ const Planner = () => {
                               border: '1px solid #bfc8e6', 
                               padding: '6px', 
                               width: '100%',
-                              marginBottom: '8px'
+                              marginBottom: '8px',
+                              boxSizing: 'border-box'
                             }}
                             placeholder="Nº raciones"
                           />

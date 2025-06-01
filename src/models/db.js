@@ -48,8 +48,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
       servings INTEGER NOT NULL,
       notes TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE CASCADE,
-      UNIQUE(user_id, date, slot)
+      FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE CASCADE
     )`);
     db.run(`CREATE TABLE IF NOT EXISTS shopping_list_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
