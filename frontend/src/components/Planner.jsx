@@ -24,6 +24,13 @@ function addDays(date, days) {
   return d;
 }
 
+// Función para obtener el nombre del día de la semana en español
+function getDayName(dateString) {
+  const date = new Date(dateString);
+  const options = { weekday: 'long' };
+  return date.toLocaleDateString('es-ES', options);
+}
+
 const Planner = () => {
   console.log('Rendering Planner component');
   const navigate = useNavigate();
@@ -211,12 +218,6 @@ const Planner = () => {
           >
             Lista de la Compra
           </button>
-          <button
-            onClick={handleLogout}
-            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
-          >
-            Cerrar sesión
-          </button>
         </div>
       </div>
 
@@ -238,7 +239,9 @@ const Planner = () => {
           <tbody>
             {weekDates.map(date => (
               <tr key={date} style={{ borderBottom: '1px solid #e3e8f0' }}>
-                <td style={{ padding: '12px', fontWeight: 'bold', background: '#f9f9f9' }}>{date}</td>
+                <td style={{ padding: '12px', fontWeight: 'bold', background: '#f9f9f9' }}>
+                  {getDayName(date)}<br />{date}
+                </td>
                 {SLOTS.map(slot => {
                   const meals = getMeal(date, slot);
                   return (

@@ -6,6 +6,7 @@ import Planner from './components/Planner'
 import IngredientsManager from './components/IngredientsManager'
 import DishesManager from './components/DishesManager'
 import ShoppingList from './components/ShoppingList'
+import Layout from './components/Layout';
 import api from './api'
 import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -21,39 +22,19 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route
-        path="/meal-planner"
-        element={
-          <ProtectedRoute>
-            <Planner />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/ingredients"
-        element={
-          <ProtectedRoute>
-            <IngredientsManager />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dishes"
-        element={
-          <ProtectedRoute>
-            <DishesManager />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/shopping-list"
-        element={
-          <ProtectedRoute>
-            <ShoppingList />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/" element={<Navigate to="/meal-planner" />} />
+      
+      {/* Usar Layout para rutas protegidas */}
+      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Navigate to="/meal-planner" />} /> {/* Ruta por defecto dentro del layout */}
+        <Route path="meal-planner" element={<Planner />} />
+        <Route path="ingredients" element={<IngredientsManager />} />
+        <Route path="dishes" element={<DishesManager />} />
+        <Route path="shopping-list" element={<ShoppingList />} />
+      </Route>
+      
+      {/* Redirigir otras rutas no definidas al login si no autenticado */}
+      <Route path="*" element={<Navigate to="/login" />} />
+
     </Routes>
   );
 };
