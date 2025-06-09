@@ -1,13 +1,29 @@
 const dishModel = require('../models/dishModel');
+const path = require('path');
+const fs = require('fs');
 
 const create = (req, res) => {
-  const { name, description, prep_time, cook_time, category, instructions, photo } = req.body;
+  const { name, description, prep_time, cook_time, category, instructions } = req.body;
   if (!name || !category || !instructions) {
     return res.status(400).json({ message: 'Nombre, categoría e instrucciones son requeridos.' });
   }
+
+  // Manejar la foto si se subió una
+  const photo = req.file ? `/uploads/dishes/${req.file.filename}` : null;
+  
   const dish = { name, description, prep_time, cook_time, category, instructions, photo };
   dishModel.createDish(dish, (err, id) => {
-    if (err) return res.status(500).json({ message: 'Error al crear plato.' });
+    if (err) {
+      // Si hay error, eliminar la foto si se subió una
+      if (req.file) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (err) {
+          console.error('Error al eliminar foto:', err);
+        }
+      }
+      return res.status(500).json({ message: 'Error al crear plato.' });
+    }
     res.status(201).json({ id, ...dish });
   });
 };
@@ -28,20 +44,70 @@ const getById = (req, res) => {
 };
 
 const update = (req, res) => {
-  const { name, description, prep_time, cook_time, category, instructions, photo } = req.body;
-  const dish = { name, description, prep_time, cook_time, category, instructions, photo };
-  dishModel.updateDish(req.params.id, dish, (err, changes) => {
-    if (err) return res.status(500).json({ message: 'Error al actualizar plato.' });
-    if (!changes) return res.status(404).json({ message: 'Plato no encontrado.' });
-    res.json({ message: 'Plato actualizado.' });
+  const { name, description, prep_time, cook_time, category, instructions } = req.body;
+  
+  // Obtener el plato actual para manejar la foto
+  dishModel.getDishById(req.params.id, (err, currentDish) => {
+    if (err) return res.status(500).json({ message: 'Error al obtener plato actual.' });
+    if (!currentDish) return res.status(404).json({ message: 'Plato no encontrado.' });
+
+    let photo = currentDish.photo; // Mantener la foto actual por defecto
+
+    // Si se subió una nueva foto
+    if (req.file) {
+      // Eliminar la foto anterior si existe
+      if (currentDish.photo) {
+        const oldPhotoPath = path.join(__dirname, '..', currentDish.photo);
+        try {
+          fs.unlinkSync(oldPhotoPath);
+        } catch (err) {
+          console.error('Error al eliminar foto anterior:', err);
+        }
+      }
+      photo = `/uploads/dishes/${req.file.filename}`;
+    }
+
+    const dish = { name, description, prep_time, cook_time, category, instructions, photo };
+    dishModel.updateDish(req.params.id, dish, (err, changes) => {
+      if (err) {
+        // Si hay error y se subió una nueva foto, eliminarla
+        if (req.file) {
+          try {
+            fs.unlinkSync(req.file.path);
+          } catch (err) {
+            console.error('Error al eliminar foto:', err);
+          }
+        }
+        return res.status(500).json({ message: 'Error al actualizar plato.' });
+      }
+      if (!changes) return res.status(404).json({ message: 'Plato no encontrado.' });
+      res.json({ message: 'Plato actualizado.', ...dish });
+    });
   });
 };
 
 const remove = (req, res) => {
-  dishModel.deleteDish(req.params.id, (err, changes) => {
-    if (err) return res.status(500).json({ message: 'Error al eliminar plato.' });
-    if (!changes) return res.status(404).json({ message: 'Plato no encontrado.' });
-    res.json({ message: 'Plato eliminado.' });
+  // Obtener el plato para eliminar su foto
+  dishModel.getDishById(req.params.id, (err, dish) => {
+    if (err) return res.status(500).json({ message: 'Error al obtener plato.' });
+    if (!dish) return res.status(404).json({ message: 'Plato no encontrado.' });
+
+    // Eliminar la foto si existe
+    if (dish.photo) {
+      const photoPath = path.join(__dirname, '..', dish.photo);
+      try {
+        fs.unlinkSync(photoPath);
+      } catch (err) {
+        console.error('Error al eliminar foto:', err);
+      }
+    }
+
+    // Eliminar el plato
+    dishModel.deleteDish(req.params.id, (err, changes) => {
+      if (err) return res.status(500).json({ message: 'Error al eliminar plato.' });
+      if (!changes) return res.status(404).json({ message: 'Plato no encontrado.' });
+      res.json({ message: 'Plato eliminado.' });
+    });
   });
 };
 

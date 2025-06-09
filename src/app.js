@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const app = express();
 const authRoutes = require('./routes/auth');
 const ingredientRoutes = require('./routes/ingredients');
@@ -10,6 +11,8 @@ const shoppingListRoutes = require('./routes/shoppingList');
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads')); // Servir archivos estáticos
 
 // Rutas principales
 app.use('/api/auth', authRoutes);

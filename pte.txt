@@ -1,0 +1,11 @@
+Cosas pendientes:
+Importante:
+-En platos poder seleccionar platos que se quieren preparar para que en "Lista de la Compra" se agregen los ingrediente necesarios.
+- Agregar platos por/pendientes de preparar.
+
+
+Secundario:
+-En "lista de la compra" poner algún recomendador de platos que se 
+quieren preparar con los ingredientes que se disponen actualmente mediante los platos 
+más preparados.
+-

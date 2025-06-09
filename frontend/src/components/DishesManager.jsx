@@ -6,6 +6,48 @@ import { useAuth } from '../context/AuthContext';
 const successStyle = { color: 'green', marginBottom: 10, background: '#e6ffe6', padding: 8, borderRadius: 6, border: '1px solid #b2ffb2' };
 const errorStyle = { color: 'red', marginBottom: 10, background: '#ffe6e6', padding: 8, borderRadius: 6, border: '1px solid #ffb2b2' };
 
+// Estilos para el popup
+const popupOverlayStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 1000
+};
+
+const popupContentStyle = {
+  position: 'relative',
+  maxWidth: '90%',
+  maxHeight: '90%'
+};
+
+const popupImageStyle = {
+  maxWidth: '100%',
+  maxHeight: '90vh',
+  objectFit: 'contain'
+};
+
+const closeButtonStyle = {
+  position: 'absolute',
+  top: -30,
+  right: 0,
+  background: 'white',
+  border: 'none',
+  borderRadius: '50%',
+  width: 30,
+  height: 30,
+  fontSize: 20,
+  cursor: 'pointer',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center'
+};
+
 export default function DishesManager() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -13,11 +55,13 @@ export default function DishesManager() {
   const [ingredients, setIngredients] = useState([]);
   const [form, setForm] = useState({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' });
   const [editId, setEditId] = useState(null);
+  const [newDishId, setNewDishId] = useState(null);
   const [dishIngredients, setDishIngredients] = useState([]);
   const [newDishIng, setNewDishIng] = useState({ ingredient_id: '', quantity: '', unit: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     fetchDishes();
@@ -82,12 +126,31 @@ export default function DishesManager() {
     e.preventDefault();
     setError(''); setSuccess('');
     if (!validateForm()) return;
+
+    const formData = new FormData();
+    Object.keys(form).forEach(key => {
+      if (key === 'photo' && form[key] instanceof File) {
+        formData.append(key, form[key]);
+      } else if (form[key] !== null && form[key] !== undefined) {
+        formData.append(key, form[key]);
+      }
+    });
+
     try {
       if (editId) {
-        await api.put(`/dishes/${editId}`, form);
+        await api.put(`/dishes/${editId}`, formData, {
+          headers: { 
+            'Content-Type': 'multipart/form-data'
+          }
+        });
         setSuccess('Plato actualizado correctamente.');
       } else {
-        await api.post('/dishes', form);
+        const response = await api.post('/dishes', formData, {
+          headers: { 
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        setNewDishId(response.data.id);
         setSuccess('Plato creado correctamente.');
       }
       setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' });
@@ -95,7 +158,8 @@ export default function DishesManager() {
       setDishIngredients([]);
       fetchDishes();
     } catch (err) {
-      setError('Error al guardar plato');
+      console.error('Error al guardar plato:', err);
+      setError('Error al guardar plato: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -129,7 +193,8 @@ export default function DishesManager() {
 
   // --- Ingredientes del plato ---
   const handleAddDishIngredient = async () => {
-    if (!editId || !newDishIng.ingredient_id || !newDishIng.quantity || !newDishIng.unit) {
+    const dishId = editId || newDishId;
+    if (!dishId || !newDishIng.ingredient_id || !newDishIng.quantity || !newDishIng.unit) {
       setError('Todos los campos del ingrediente son obligatorios.');
       return;
     }
@@ -138,9 +203,9 @@ export default function DishesManager() {
       return;
     }
     try {
-      await api.post(`/dishes/${editId}/ingredients`, newDishIng);
+      await api.post(`/dishes/${dishId}/ingredients`, newDishIng);
       setNewDishIng({ ingredient_id: '', quantity: '', unit: '' });
-      fetchDishIngredients(editId);
+      fetchDishIngredients(dishId);
       setSuccess('Ingrediente añadido al plato.');
     } catch (err) {
       setError('Error al añadir ingrediente al plato');
@@ -148,9 +213,10 @@ export default function DishesManager() {
   };
 
   const handleDeleteDishIngredient = async (id) => {
+    const dishId = editId || newDishId;
     try {
-      await api.delete(`/dishes/${editId}/ingredients/${id}`);
-      fetchDishIngredients(editId);
+      await api.delete(`/dishes/${dishId}/ingredients/${id}`);
+      fetchDishIngredients(dishId);
       setSuccess('Ingrediente eliminado del plato.');
     } catch (err) {
       setError('Error al eliminar ingrediente del plato');
@@ -170,6 +236,23 @@ export default function DishesManager() {
 
   const handleBack = () => {
     navigate('/');
+  };
+
+  const handleFileChange = e => {
+    const file = e.target.files[0];
+    if (file) {
+      setForm({ ...form, photo: file });
+    }
+  };
+
+  const handleImageClick = (photo) => {
+    if (photo) {
+      setSelectedImage(photo);
+    }
+  };
+
+  const closePopup = () => {
+    setSelectedImage(null);
   };
 
   console.log('Rendering DishesManager component');
@@ -199,7 +282,12 @@ export default function DishesManager() {
           <input name="category" placeholder="Categoría" value={form.category} onChange={handleChange} required style={{ flex: 1, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
           <input name="prep_time" placeholder="Tiempo prep." value={form.prep_time} onChange={handleChange} style={{ width: 100, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
           <input name="cook_time" placeholder="Tiempo cocción" value={form.cook_time} onChange={handleChange} style={{ width: 120, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-          <input name="photo" placeholder="URL foto" value={form.photo} onChange={handleChange} style={{ width: 180, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={handleFileChange} 
+            style={{ width: 180, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+          />
         </div>
         <textarea name="description" placeholder="Descripción" value={form.description} onChange={handleChange} style={{ width: '99%', marginTop: 8, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
         <textarea 
@@ -222,7 +310,7 @@ export default function DishesManager() {
           {editId && <button type="button" onClick={() => { setEditId(null); setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' }); setDishIngredients([]); }} style={{ marginLeft: 8, background: '#e3e8f0', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}>Cancelar</button>}
         </div>
       </form>
-      {editId && (
+      {(editId || newDishId) && (
         <div style={{ background: '#eef', padding: 12, borderRadius: 8, marginBottom: 20, boxShadow: '0 2px 8px #e3e8f0' }}>
           <h4 style={{ color: '#2a3d66' }}>Ingredientes del plato</h4>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
@@ -279,7 +367,14 @@ export default function DishesManager() {
         <tbody>
           {filteredDishes.map(dish => (
             <tr key={dish.id} style={{ background: '#f9f9f9', borderBottom: '1px solid #e3e8f0' }}>
-              <td>{dish.name}</td>
+              <td>
+                <span 
+                  onClick={() => handleImageClick(dish.photo)} 
+                  style={{ cursor: dish.photo ? 'pointer' : 'default', color: dish.photo ? '#2a3d66' : 'inherit' }}
+                >
+                  {dish.name}
+                </span>
+              </td>
               <td>{dish.category}</td>
               <td>
                 <button onClick={() => handleEdit(dish)} style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Editar</button>
@@ -289,6 +384,19 @@ export default function DishesManager() {
           ))}
         </tbody>
       </table>
+
+      {selectedImage && (
+        <div style={popupOverlayStyle} onClick={closePopup}>
+          <div style={popupContentStyle} onClick={e => e.stopPropagation()}>
+            <button style={closeButtonStyle} onClick={closePopup}>×</button>
+            <img 
+              src={`http://localhost:3001${selectedImage}`} 
+              alt="Plato" 
+              style={popupImageStyle} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
