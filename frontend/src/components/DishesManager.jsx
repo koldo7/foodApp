@@ -102,6 +102,8 @@ export default function DishesManager() {
   const [showNewIngredientForm, setShowNewIngredientForm] = useState(false);
   const [newIngredient, setNewIngredient] = useState({ name: '', unit: '' });
   const [pendingIngredients, setPendingIngredients] = useState([]);
+  const [isDuplicateName, setIsDuplicateName] = useState(false);
+  const [duplicateNameErrorMessage, setDuplicateNameErrorMessage] = useState('');
 
   useEffect(() => {
     fetchDishes();
@@ -143,10 +145,31 @@ export default function DishesManager() {
   };
 
   const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm(prevForm => ({ ...prevForm, [name]: value }));
+
+    if (name === 'name') {
+      const isNameTaken = dishes.some(dish => 
+        dish.name.toLowerCase() === value.toLowerCase() && 
+        dish.id !== editId
+      );
+      setIsDuplicateName(isNameTaken);
+      if (isNameTaken) {
+        setDuplicateNameErrorMessage('Ya existe un plato con este nombre.');
+      } else {
+        setDuplicateNameErrorMessage('');
+        if (error === 'Ya existe un plato con este nombre.' || error === 'No se puede guardar: Ya existe un plato con este nombre.') {
+          setError('');
+        }
+      }
+    }
   };
 
   const validateForm = () => {
+    if (isDuplicateName) {
+      setError('No se puede guardar: Ya existe un plato con este nombre.');
+      return false;
+    }
     if (!form.name.trim() || !form.category.trim() || !form.instructions.trim()) {
       setError('Nombre, categoría e instrucciones son obligatorios.');
       return false;
@@ -165,6 +188,7 @@ export default function DishesManager() {
   const handleSubmit = async e => {
     e.preventDefault();
     setError(''); setSuccess('');
+    setDuplicateNameErrorMessage('');
     if (!validateForm()) return;
 
     const formData = new FormData();
@@ -239,6 +263,7 @@ export default function DishesManager() {
       setShowNewIngredientForm(false);
       setNewIngredient({ name: '', unit: '' });
       setIngredientSearch('');
+      setDuplicateNameErrorMessage('');
       
       // Actualizar la lista de platos
       await fetchDishes();
@@ -377,6 +402,8 @@ export default function DishesManager() {
     setNewDishId(null);
     setError('');
     setSuccess('');
+    setIsDuplicateName(false);
+    setDuplicateNameErrorMessage('');
   };
 
   const handleCloseModal = () => {
@@ -408,25 +435,25 @@ export default function DishesManager() {
   console.log('Rendering DishesManager component');
 
   return (
-    <div style={{ maxWidth: 900, margin: '30px auto', fontFamily: 'Segoe UI, Arial, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>Platos</h2>
+    <div style={{ maxWidth: 1600, margin: '30px auto', fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 style={{ color: '#2a3d66', letterSpacing: 1, fontSize: '28px' }}>Platos</h2>
         <div>
           <button
             onClick={handleOpenModal}
-            style={{ marginRight: 8, background: '#4CAF50', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ marginRight: 8, background: '#4CAF50', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', cursor: 'pointer', fontSize: '15px' }}
           >
             Añadir nuevo plato
           </button>
           <button
             onClick={handleBack}
-            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', cursor: 'pointer', fontSize: '15px' }}
           >
             Volver
           </button>
           <button
             onClick={handleLogout}
-            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', cursor: 'pointer', fontSize: '15px' }}
           >
             Cerrar sesión
           </button>
@@ -436,10 +463,14 @@ export default function DishesManager() {
       {/* Modal para añadir nuevo plato */}
       {showModal && (
         <div style={modalStyle}>
-          <div style={modalContentStyle}>
+          <div style={{...modalContentStyle, width: '95%', maxWidth: '1400px'}}>
             <button style={modalCloseButtonStyle} onClick={handleCloseModal}>×</button>
             <h2 style={{ color: '#2a3d66', marginBottom: '20px' }}>Añadir nuevo plato</h2>
             
+            {(error || success) && (
+              <div style={error ? errorStyle : successStyle}>{error || success}</div>
+            )}
+
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '16px' }}>
                 <input 
@@ -448,8 +479,13 @@ export default function DishesManager() {
                   value={form.name} 
                   onChange={handleChange} 
                   required 
-                  style={{ flex: 1, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+                  style={{ flex: 1, borderRadius: 6, border: isDuplicateName ? '1px solid red' : '1px solid #bfc8e6', padding: 6 }} 
                 />
+                {duplicateNameErrorMessage && 
+                  <div style={{ color: 'red', fontSize: '12px', marginTop: '-10px', width: '100%' }}>
+                    {duplicateNameErrorMessage}
+                  </div>
+                }
                 <input 
                   name="category" 
                   placeholder="Categoría" 
@@ -662,33 +698,28 @@ export default function DishesManager() {
         </div>
       )}
 
-      {/* Resto del componente (tabla de platos, etc.) */}
-      {(error || success) && (
-        <div style={error ? errorStyle : successStyle}>{error || success}</div>
-      )}
-      
-      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
           type="text"
           placeholder="Buscar por nombre o categoría..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: 6, width: 300 }}
+          style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: 10, width: 500, fontSize: '15px' }}
         />
       </div>
 
-      <table border="0" cellPadding={6} style={{ width: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #e3e8f0' }}>
+      <table border="0" cellPadding={8} style={{ width: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #e3e8f0' }}>
         <thead style={{ background: '#e3e8f0' }}>
           <tr>
-            <th>Nombre</th>
-            <th>Categoría</th>
-            <th>Acciones</th>
+            <th style={{ padding: '8px', textAlign: 'left', fontSize: '15px', width: '60%' }}>Nombre</th>
+            <th style={{ padding: '28px', textAlign: 'left', fontSize: '15px', width: '20%' }}>Categoría</th>
+            <th style={{ padding: '50px', textAlign: 'left', fontSize: '15px', width: '20%' }}>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {filteredDishes.map(dish => (
             <tr key={dish.id} style={{ background: '#f9f9f9', borderBottom: '1px solid #e3e8f0' }}>
-              <td>
+              <td style={{ padding: '8px', fontSize: '15px' }}>
                 <span 
                   onClick={() => handleImageClick(dish.photo)} 
                   style={{ cursor: dish.photo ? 'pointer' : 'default', color: dish.photo ? '#2a3d66' : 'inherit' }}
@@ -696,10 +727,10 @@ export default function DishesManager() {
                   {dish.name}
                 </span>
               </td>
-              <td>{dish.category}</td>
-              <td>
-                <button onClick={() => handleEdit(dish)} style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Editar</button>
-                <button onClick={() => handleDelete(dish.id)} style={{ marginLeft: 8, background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Eliminar</button>
+              <td style={{ padding: '8px', fontSize: '15px' }}>{dish.category}</td>
+              <td style={{ padding: '8px' }}>
+                <button onClick={() => handleEdit(dish)} style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: '15px' }}>Editar</button>
+                <button onClick={() => handleDelete(dish.id)} style={{ marginLeft: 8, background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: '15px' }}>Eliminar</button>
               </td>
             </tr>
           ))}
