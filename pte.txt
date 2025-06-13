@@ -2,10 +2,10 @@ Cosas pendientes:
 Importante:
 -En platos poder seleccionar platos que se quieren preparar para que en "Lista de la Compra" se agregen los ingrediente necesarios.
 - Agregar platos por/pendientes de preparar.
-
+- Reprar duplicaciones al agregar platos y mirar si hay duplicaciones en ingredientes.
 
 Secundario:
 -En "lista de la compra" poner algún recomendador de platos que se 
 quieren preparar con los ingredientes que se disponen actualmente mediante los platos 
 más preparados.
--
+- Que al agregar un ingrediente se ponga las medidad 1 por defecto.

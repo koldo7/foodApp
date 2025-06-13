@@ -48,6 +48,41 @@ const closeButtonStyle = {
   alignItems: 'center'
 };
 
+const modalStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 1000
+};
+
+const modalContentStyle = {
+  background: 'white',
+  padding: '20px',
+  borderRadius: '8px',
+  width: '80%',
+  maxWidth: '800px',
+  maxHeight: '90vh',
+  overflowY: 'auto',
+  position: 'relative'
+};
+
+const modalCloseButtonStyle = {
+  position: 'absolute',
+  top: '10px',
+  right: '10px',
+  background: 'none',
+  border: 'none',
+  fontSize: '24px',
+  cursor: 'pointer',
+  color: '#666'
+};
+
 export default function DishesManager() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -62,6 +97,11 @@ export default function DishesManager() {
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [ingredientSearch, setIngredientSearch] = useState('');
+  const [showNewIngredientForm, setShowNewIngredientForm] = useState(false);
+  const [newIngredient, setNewIngredient] = useState({ name: '', unit: '' });
+  const [pendingIngredients, setPendingIngredients] = useState([]);
 
   useEffect(() => {
     fetchDishes();
@@ -143,6 +183,32 @@ export default function DishesManager() {
             'Content-Type': 'multipart/form-data'
           }
         });
+
+        // Obtener los IDs de los ingredientes actuales
+        const currentIngredientIds = pendingIngredients.map(ing => ing.id);
+        
+        // Obtener los ingredientes actuales del plato
+        const response = await api.get(`/dishes/${editId}/ingredients`);
+        const existingIngredients = response.data;
+
+        // Eliminar ingredientes que ya no están en la lista
+        for (const existingIng of existingIngredients) {
+          if (!currentIngredientIds.includes(existingIng.id)) {
+            await api.delete(`/dishes/${editId}/ingredients/${existingIng.id}`);
+          }
+        }
+
+        // Añadir nuevos ingredientes
+        for (const ingredient of pendingIngredients) {
+          if (!existingIngredients.find(ei => ei.id === ingredient.id)) {
+            await api.post(`/dishes/${editId}/ingredients`, {
+              ingredient_id: ingredient.ingredient_id,
+              quantity: ingredient.quantity,
+              unit: ingredient.unit
+            });
+          }
+        }
+
         setSuccess('Plato actualizado correctamente.');
       } else {
         const response = await api.post('/dishes', formData, {
@@ -150,13 +216,32 @@ export default function DishesManager() {
             'Content-Type': 'multipart/form-data'
           }
         });
-        setNewDishId(response.data.id);
-        setSuccess('Plato creado correctamente.');
+        const newDishId = response.data.id;
+
+        // Añadir todos los ingredientes pendientes al nuevo plato
+        for (const ingredient of pendingIngredients) {
+          await api.post(`/dishes/${newDishId}/ingredients`, {
+            ingredient_id: ingredient.ingredient_id,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit
+          });
+        }
+
+        setSuccess('Plato creado correctamente con sus ingredientes.');
       }
+      
+      // Limpiar el formulario y cerrar el modal
       setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' });
       setEditId(null);
       setDishIngredients([]);
-      fetchDishes();
+      setPendingIngredients([]);
+      setShowModal(false);
+      setShowNewIngredientForm(false);
+      setNewIngredient({ name: '', unit: '' });
+      setIngredientSearch('');
+      
+      // Actualizar la lista de platos
+      await fetchDishes();
     } catch (err) {
       console.error('Error al guardar plato:', err);
       setError('Error al guardar plato: ' + (err.response?.data?.error || err.message));
@@ -174,7 +259,20 @@ export default function DishesManager() {
       photo: dish.photo || ''
     });
     setEditId(dish.id);
-    await fetchDishIngredients(dish.id);
+    setShowModal(true);
+    try {
+      const response = await api.get(`/dishes/${dish.id}/ingredients`);
+      setPendingIngredients(response.data.map(ing => ({
+        id: ing.id,
+        ingredient_id: ing.ingredient_id,
+        name: ing.name,
+        quantity: ing.quantity,
+        unit: ing.unit
+      })));
+    } catch (err) {
+      setError('Error al cargar ingredientes del plato');
+      setPendingIngredients([]);
+    }
   };
 
   const handleDelete = async id => {
@@ -193,8 +291,7 @@ export default function DishesManager() {
 
   // --- Ingredientes del plato ---
   const handleAddDishIngredient = async () => {
-    const dishId = editId || newDishId;
-    if (!dishId || !newDishIng.ingredient_id || !newDishIng.quantity || !newDishIng.unit) {
+    if (!newDishIng.ingredient_id || !newDishIng.quantity || !newDishIng.unit) {
       setError('Todos los campos del ingrediente son obligatorios.');
       return;
     }
@@ -202,24 +299,42 @@ export default function DishesManager() {
       setError('La cantidad debe ser un número positivo.');
       return;
     }
-    try {
-      await api.post(`/dishes/${dishId}/ingredients`, newDishIng);
-      setNewDishIng({ ingredient_id: '', quantity: '', unit: '' });
-      fetchDishIngredients(dishId);
-      setSuccess('Ingrediente añadido al plato.');
-    } catch (err) {
-      setError('Error al añadir ingrediente al plato');
+
+    // Encontrar el nombre del ingrediente seleccionado
+    const selectedIngredient = ingredients.find(ing => ing.id === newDishIng.ingredient_id);
+    if (!selectedIngredient) {
+      setError('Ingrediente no encontrado');
+      return;
     }
+
+    // Crear un nuevo objeto de ingrediente con toda la información necesaria
+    const newIngredient = {
+      id: Date.now(), // ID temporal para la lista
+      ingredient_id: newDishIng.ingredient_id,
+      name: selectedIngredient.name,
+      quantity: newDishIng.quantity,
+      unit: newDishIng.unit
+    };
+
+    // Añadir a la lista de ingredientes pendientes
+    setPendingIngredients([...pendingIngredients, newIngredient]);
+    setNewDishIng({ ingredient_id: '', quantity: '', unit: '' });
+    setIngredientSearch('');
+    setSuccess('Ingrediente añadido al plato.');
   };
 
   const handleDeleteDishIngredient = async (id) => {
-    const dishId = editId || newDishId;
-    try {
-      await api.delete(`/dishes/${dishId}/ingredients/${id}`);
-      fetchDishIngredients(dishId);
+    if (editId) {
+      try {
+        await api.delete(`/dishes/${editId}/ingredients/${id}`);
+        setPendingIngredients(pendingIngredients.filter(ing => ing.id !== id));
+        setSuccess('Ingrediente eliminado del plato.');
+      } catch (err) {
+        setError('Error al eliminar ingrediente del plato');
+      }
+    } else {
+      setPendingIngredients(pendingIngredients.filter(ing => ing.id !== id));
       setSuccess('Ingrediente eliminado del plato.');
-    } catch (err) {
-      setError('Error al eliminar ingrediente del plato');
     }
   };
 
@@ -255,6 +370,41 @@ export default function DishesManager() {
     setSelectedImage(null);
   };
 
+  const handleOpenModal = () => {
+    setShowModal(true);
+    setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' });
+    setDishIngredients([]);
+    setNewDishId(null);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setShowNewIngredientForm(false);
+    setNewIngredient({ name: '', unit: '' });
+  };
+
+  const handleAddNewIngredient = async () => {
+    if (!newIngredient.name.trim()) {
+      setError('El nombre del ingrediente es obligatorio');
+      return;
+    }
+    try {
+      const response = await api.post('/ingredients', newIngredient);
+      setIngredients([...ingredients, response.data]);
+      setNewIngredient({ name: '', unit: '' });
+      setShowNewIngredientForm(false);
+      setSuccess('Ingrediente añadido correctamente');
+    } catch (err) {
+      setError('Error al añadir ingrediente');
+    }
+  };
+
+  const filteredIngredients = ingredients.filter(ing =>
+    ing.name.toLowerCase().includes(ingredientSearch.toLowerCase())
+  );
+
   console.log('Rendering DishesManager component');
 
   return (
@@ -262,6 +412,12 @@ export default function DishesManager() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>Platos</h2>
         <div>
+          <button
+            onClick={handleOpenModal}
+            style={{ marginRight: 8, background: '#4CAF50', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            Añadir nuevo plato
+          </button>
           <button
             onClick={handleBack}
             style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
@@ -276,77 +432,241 @@ export default function DishesManager() {
           </button>
         </div>
       </div>
-      <form onSubmit={handleSubmit} style={{ marginBottom: 20, background: '#f9f9f9', padding: 16, borderRadius: 10, boxShadow: '0 2px 8px #e3e8f0' }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input name="name" placeholder="Nombre" value={form.name} onChange={handleChange} required style={{ flex: 1, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-          <input name="category" placeholder="Categoría" value={form.category} onChange={handleChange} required style={{ flex: 1, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-          <input name="prep_time" placeholder="Tiempo prep." value={form.prep_time} onChange={handleChange} style={{ width: 100, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-          <input name="cook_time" placeholder="Tiempo cocción" value={form.cook_time} onChange={handleChange} style={{ width: 120, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={handleFileChange} 
-            style={{ width: 180, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
-          />
-        </div>
-        <textarea name="description" placeholder="Descripción" value={form.description} onChange={handleChange} style={{ width: '99%', marginTop: 8, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-        <textarea 
-          name="instructions" 
-          placeholder="Instrucciones" 
-          value={form.instructions} 
-          onChange={handleChange} 
-          style={{
-            width: '99%', 
-            marginTop: 8, 
-            borderRadius: 6, 
-            border: '1px solid #bfc8e6', 
-            padding: 6,
-            minHeight: '150px'
-          }}
-          required 
-        />
-        <div style={{ marginTop: 8 }}>
-          <button type="submit" style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}>{editId ? 'Actualizar' : 'Añadir'}</button>
-          {editId && <button type="button" onClick={() => { setEditId(null); setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' }); setDishIngredients([]); }} style={{ marginLeft: 8, background: '#e3e8f0', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}>Cancelar</button>}
-        </div>
-      </form>
-      {(editId || newDishId) && (
-        <div style={{ background: '#eef', padding: 12, borderRadius: 8, marginBottom: 20, boxShadow: '0 2px 8px #e3e8f0' }}>
-          <h4 style={{ color: '#2a3d66' }}>Ingredientes del plato</h4>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-            <select value={newDishIng.ingredient_id} onChange={e => setNewDishIng({ ...newDishIng, ingredient_id: e.target.value })} style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }}>
-              <option value="">--Ingrediente--</option>
-              {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}</option>)}
-            </select>
-            <input type="number" min={1} placeholder="Cantidad" value={newDishIng.quantity} onChange={e => setNewDishIng({ ...newDishIng, quantity: e.target.value })} style={{ width: 80, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-            <input placeholder="Unidad" value={newDishIng.unit} onChange={e => setNewDishIng({ ...newDishIng, unit: e.target.value })} style={{ width: 80, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} />
-            <button type="button" onClick={handleAddDishIngredient} style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}>Añadir</button>
+
+      {/* Modal para añadir nuevo plato */}
+      {showModal && (
+        <div style={modalStyle}>
+          <div style={modalContentStyle}>
+            <button style={modalCloseButtonStyle} onClick={handleCloseModal}>×</button>
+            <h2 style={{ color: '#2a3d66', marginBottom: '20px' }}>Añadir nuevo plato</h2>
+            
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '16px' }}>
+                <input 
+                  name="name" 
+                  placeholder="Nombre" 
+                  value={form.name} 
+                  onChange={handleChange} 
+                  required 
+                  style={{ flex: 1, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+                />
+                <input 
+                  name="category" 
+                  placeholder="Categoría" 
+                  value={form.category} 
+                  onChange={handleChange} 
+                  required 
+                  style={{ flex: 1, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+                />
+                <input 
+                  name="prep_time" 
+                  placeholder="Tiempo prep." 
+                  value={form.prep_time} 
+                  onChange={handleChange} 
+                  style={{ width: 100, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+                />
+                <input 
+                  name="cook_time" 
+                  placeholder="Tiempo cocción" 
+                  value={form.cook_time} 
+                  onChange={handleChange} 
+                  style={{ width: 120, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+                />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                  style={{ width: 180, borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+                />
+              </div>
+
+              <textarea 
+                name="description" 
+                placeholder="Descripción" 
+                value={form.description} 
+                onChange={handleChange} 
+                style={{ width: '99%', marginBottom: '16px', borderRadius: 6, border: '1px solid #bfc8e6', padding: 6 }} 
+              />
+              
+              <textarea 
+                name="instructions" 
+                placeholder="Instrucciones" 
+                value={form.instructions} 
+                onChange={handleChange} 
+                style={{
+                  width: '99%', 
+                  marginBottom: '16px', 
+                  borderRadius: 6, 
+                  border: '1px solid #bfc8e6', 
+                  padding: 6,
+                  minHeight: '150px'
+                }}
+                required 
+              />
+
+              {/* Sección de ingredientes */}
+              <div style={{ marginTop: '20px', padding: '16px', background: '#f5f5f5', borderRadius: '8px' }}>
+                <h3 style={{ color: '#2a3d66', marginBottom: '16px' }}>Ingredientes</h3>
+                
+                {/* Búsqueda de ingredientes */}
+                <div style={{ marginBottom: '16px' }}>
+                  <input
+                    type="text"
+                    placeholder="Buscar ingrediente..."
+                    value={ingredientSearch}
+                    onChange={(e) => setIngredientSearch(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #bfc8e6' }}
+                  />
+                </div>
+
+                {/* Lista de ingredientes filtrados */}
+                <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '16px' }}>
+                  {filteredIngredients.map(ing => (
+                    <div 
+                      key={ing.id}
+                      style={{
+                        padding: '8px',
+                        borderBottom: '1px solid #e0e0e0',
+                        cursor: 'pointer',
+                        ':hover': { background: '#f0f0f0' }
+                      }}
+                      onClick={() => {
+                        setNewDishIng({ ...newDishIng, ingredient_id: ing.id });
+                        setIngredientSearch(ing.name);
+                      }}
+                    >
+                      {ing.name}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Formulario para añadir ingrediente al plato */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Cantidad"
+                    value={newDishIng.quantity}
+                    onChange={e => setNewDishIng({ ...newDishIng, quantity: e.target.value })}
+                    style={{ width: '100px', padding: '8px', borderRadius: '4px', border: '1px solid #bfc8e6' }}
+                  />
+                  <input
+                    placeholder="Unidad"
+                    value={newDishIng.unit}
+                    onChange={e => setNewDishIng({ ...newDishIng, unit: e.target.value })}
+                    style={{ width: '100px', padding: '8px', borderRadius: '4px', border: '1px solid #bfc8e6' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDishIngredient}
+                    style={{ padding: '8px 16px', background: '#2a3d66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Añadir ingrediente
+                  </button>
+                </div>
+
+                {/* Botón para añadir nuevo ingrediente */}
+                <button
+                  type="button"
+                  onClick={() => setShowNewIngredientForm(true)}
+                  style={{ padding: '8px 16px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Añadir nuevo ingrediente
+                </button>
+
+                {/* Formulario para nuevo ingrediente */}
+                {showNewIngredientForm && (
+                  <div style={{ marginTop: '16px', padding: '16px', background: 'white', borderRadius: '4px', border: '1px solid #bfc8e6' }}>
+                    <h4 style={{ marginBottom: '16px' }}>Nuevo ingrediente</h4>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                      <input
+                        placeholder="Nombre del ingrediente"
+                        value={newIngredient.name}
+                        onChange={e => setNewIngredient({ ...newIngredient, name: e.target.value })}
+                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #bfc8e6' }}
+                      />
+                      <input
+                        placeholder="Unidad por defecto"
+                        value={newIngredient.unit}
+                        onChange={e => setNewIngredient({ ...newIngredient, unit: e.target.value })}
+                        style={{ width: '150px', padding: '8px', borderRadius: '4px', border: '1px solid #bfc8e6' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddNewIngredient}
+                        style={{ padding: '8px 16px', background: '#2a3d66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewIngredientForm(false)}
+                        style={{ padding: '8px 16px', background: '#e57373', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista de ingredientes añadidos */}
+                <div style={{ marginTop: '16px' }}>
+                  <h4 style={{ marginBottom: '8px' }}>Ingredientes añadidos:</h4>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f0f0f0' }}>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Ingrediente</th>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Cantidad</th>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Unidad</th>
+                        <th style={{ padding: '8px', textAlign: 'left' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingIngredients.map(di => (
+                        <tr key={di.id} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                          <td style={{ padding: '8px' }}>{di.name}</td>
+                          <td style={{ padding: '8px' }}>{di.quantity}</td>
+                          <td style={{ padding: '8px' }}>{di.unit}</td>
+                          <td style={{ padding: '8px' }}>
+                            <button
+                              onClick={() => handleDeleteDishIngredient(di.id)}
+                              style={{ padding: '4px 8px', background: '#e57373', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '20px', display: 'flex', gap: '8px' }}>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 16px', background: '#2a3d66', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Guardar plato
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  style={{ padding: '8px 16px', background: '#e57373', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-          <table border="0" cellPadding={6} style={{ width: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #e3e8f0' }}>
-            <thead style={{ background: '#e3e8f0' }}>
-              <tr>
-                <th>Ingrediente</th>
-                <th>Cantidad</th>
-                <th>Unidad</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dishIngredients.map(di => (
-                <tr key={di.id} style={{ background: '#f9f9f9', borderBottom: '1px solid #e3e8f0' }}>
-                  <td>{di.name}</td>
-                  <td>{di.quantity}</td>
-                  <td>{di.unit}</td>
-                  <td><button onClick={() => handleDeleteDishIngredient(di.id)} style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Eliminar</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
+
+      {/* Resto del componente (tabla de platos, etc.) */}
       {(error || success) && (
         <div style={error ? errorStyle : successStyle}>{error || success}</div>
       )}
+      
       <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
           type="text"
@@ -356,6 +676,7 @@ export default function DishesManager() {
           style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: 6, width: 300 }}
         />
       </div>
+
       <table border="0" cellPadding={6} style={{ width: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #e3e8f0' }}>
         <thead style={{ background: '#e3e8f0' }}>
           <tr>
