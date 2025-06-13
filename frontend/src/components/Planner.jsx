@@ -24,6 +24,20 @@ function addDays(date, days) {
   return d;
 }
 
+// Función para obtener el número de semana ISO 8601
+function getWeekNumber(d) {
+  // Copy date so don't modify original
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // Set to nearest Thursday: current date + 4 - current day number
+  // Adjust if Sunday is 0
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  // Get week number from filtered first day of year
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  // Calculate full weeks to the nearest Thursday
+  var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
+}
+
 // Función para obtener el nombre del día de la semana en español
 function getDayName(dateString) {
   const date = new Date(dateString);
@@ -41,19 +55,18 @@ const Planner = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [newMeal, setNewMeal] = useState({});
+  const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
 
-  // Calcular semana actual
-  const today = new Date();
-  const monday = getMonday(today);
-  const weekDates = Array.from({ length: 7 }, (_, i) => formatDate(addDays(monday, i)));
+  // Calcular las fechas de la semana basadas en currentWeekStart
+  const weekDates = Array.from({ length: 7 }, (_, i) => formatDate(addDays(currentWeekStart, i)));
 
   useEffect(() => {
     console.log('Planner: Initial fetch effect triggered');
     const fetchData = async () => {
-      await Promise.all([fetchMealPlans(), fetchDishes()]);
+      await Promise.all([fetchMealPlans(currentWeekStart), fetchDishes()]);
     };
     fetchData();
-  }, []);
+  }, [currentWeekStart]); // Re-fetch meal plans when currentWeekStart changes
 
   useEffect(() => {
     if (error || success) {
@@ -62,10 +75,11 @@ const Planner = () => {
     }
   }, [error, success]);
 
-  const fetchMealPlans = async () => {
+  const fetchMealPlans = async (weekStart) => {
     try {
       setLoading(true);
-      console.log('Fetching meal plans for week:', weekDates[0], 'to', weekDates[6]);
+      const endDate = formatDate(addDays(weekStart, 6));
+      console.log('Fetching meal plans for week:', formatDate(weekStart), 'to', endDate);
       const token = localStorage.getItem('token');
       if (!token) {
         console.error('No token found');
@@ -78,8 +92,8 @@ const Planner = () => {
           'Authorization': `Bearer ${token}`
         },
         params: {
-          startDate: weekDates[0],
-          endDate: weekDates[6]
+          startDate: formatDate(weekStart),
+          endDate: endDate
         }
       });
       console.log('Meal plans fetched successfully:', response.data);
@@ -156,7 +170,7 @@ const Planner = () => {
       const response = await axios.post('/api/meal-plan', { date, slot, dish_id, servings });
       console.log('Meal added successfully:', response.data);
       setNewMeal({ ...newMeal, [`${date}-${slot}`]: { dish_id: '', servings: '' } });
-      fetchMealPlans();
+      fetchMealPlans(currentWeekStart);
       setSuccess('Comida añadida al planificador.');
     } catch (err) {
       console.error('Error adding meal:', err.response?.data || err.message);
@@ -170,7 +184,7 @@ const Planner = () => {
       console.log('Deleting meal:', id);
       const response = await axios.delete(`/api/meal-plan/${id}`);
       console.log('Meal deleted successfully:', response.data);
-      fetchMealPlans();
+      fetchMealPlans(currentWeekStart);
       setSuccess('Comida eliminada del planificador.');
     } catch (err) {
       console.error('Error deleting meal:', err.response?.data || err.message);
@@ -180,6 +194,14 @@ const Planner = () => {
 
   const getMeal = (date, slot) =>
     mealPlans.filter(m => m.date === date && m.slot === slot);
+
+  const handlePreviousWeek = () => {
+    setCurrentWeekStart(prevMonday => addDays(prevMonday, -7));
+  };
+
+  const handleNextWeek = () => {
+    setCurrentWeekStart(prevMonday => addDays(prevMonday, 7));
+  };
 
   if (loading) {
     console.log('Planner: Still loading, showing loading message');
@@ -198,23 +220,37 @@ const Planner = () => {
   return (
     <div style={{ maxWidth: 1200, margin: '30px auto', fontFamily: 'Segoe UI, Arial, sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>Planificador Semanal</h2>
-        <div>
+        <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>
+          Planificador Semanal (Semana {getWeekNumber(currentWeekStart)})
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={handlePreviousWeek}
+            style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            Semana Anterior
+          </button>
+          <button
+            onClick={handleNextWeek}
+            style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            Semana Siguiente
+          </button>
           <button
             onClick={handleManageIngredients}
-            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ marginLeft: 16, background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Gestionar Ingredientes
           </button>
           <button
             onClick={handleManageDishes}
-            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ marginRight: 8, background: '#f0ad4e', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Gestionar Platos
           </button>
           <button
             onClick={handleViewShoppingList}
-            style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+            style={{ marginRight: 8, background: '#d9534f', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
           >
             Lista de la Compra
           </button>
