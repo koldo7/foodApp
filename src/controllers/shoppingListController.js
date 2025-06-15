@@ -4,6 +4,7 @@ const shoppingListModel = require('../models/shoppingListModel');
 const getShoppingList = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('Fetching shopping list for userId:', userId);
     const shoppingList = await shoppingListModel.getShoppingList(userId);
     res.json(shoppingList);
   } catch (error) {

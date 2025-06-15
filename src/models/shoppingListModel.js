@@ -6,41 +6,45 @@ const getShoppingList = (userId) => {
     // Obtener ítems generados del plan semanal
     const generatedItems = `
       SELECT 
-        i.name,
+        COALESCE(i.name, '') as name,
         SUM(di.quantity * mp.servings) as total_quantity,
-        di.unit,
-        i.category,
+        COALESCE(di.unit, '') as unit,
+        COALESCE(i.category, '') as category,
         0 as is_checked,
         'generated' as source
       FROM meal_plans mp
-      JOIN dishes d ON mp.dish_id = d.id
-      JOIN dish_ingredients di ON d.id = di.dish_id
-      JOIN ingredients i ON di.ingredient_id = i.id
+      LEFT JOIN dishes d ON mp.dish_id = d.id
+      LEFT JOIN dish_ingredients di ON d.id = di.dish_id
+      LEFT JOIN ingredients i ON di.ingredient_id = i.id
       WHERE mp.user_id = ? 
-      AND date(mp.date) >= date('now', 'start of week')
-      AND date(mp.date) <= date('now', 'start of week', '+6 days')
+      AND date(mp.date) >= date('now')
       GROUP BY i.name, di.unit, i.category
     `;
 
-    // Obtener ítems manuales
-    const manualItems = `
-      SELECT 
-        name,
-        quantity as total_quantity,
-        unit,
-        category,
-        is_checked,
-        'manual' as source,
-        id
-      FROM shopping_list_items
-      WHERE user_id = ?
-    `;
+    console.log('Executing generatedItems query for userId:', userId);
+    console.log('Query:', generatedItems);
 
     db.all(generatedItems, [userId], (err, generated) => {
       if (err) {
+        console.error('Error executing generatedItems query:', err);
         reject(err);
         return;
       }
+      console.log('Generated items result:', generated);
+
+      // Obtener ítems manuales
+      const manualItems = `
+        SELECT 
+          name,
+          quantity as total_quantity,
+          unit,
+          category,
+          is_checked,
+          'manual' as source,
+          id
+        FROM shopping_list_items
+        WHERE user_id = ?
+      `;
 
       db.all(manualItems, [userId], (err, manual) => {
         if (err) {

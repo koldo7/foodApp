@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaPlus, FaTrash, FaCheck, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaCheck, FaEdit, FaSearch } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+
+const successStyle = { color: 'green', marginBottom: 10, background: '#e6ffe6', padding: 8, borderRadius: 6, border: '1px solid #b2ffb2' };
+const errorStyle = { color: 'red', marginBottom: 10, background: '#ffe6e6', padding: 8, borderRadius: 6, border: '1px solid #ffb2b2' };
 
 const ShoppingList = () => {
   const navigate = useNavigate();
   const [shoppingList, setShoppingList] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // Estado para mensajes de error
+  const [success, setSuccess] = useState(null); // Estado para mensajes de éxito
   const [newItem, setNewItem] = useState({
     name: '',
     quantity: '',
@@ -16,6 +21,9 @@ const ShoppingList = () => {
     category: ''
   });
   const [editingItem, setEditingItem] = useState(null);
+  const [showNewIngredientForm, setShowNewIngredientForm] = useState(false);
+  const [ingredientSearch, setIngredientSearch] = useState('');
+  const [showIngredientSearch, setShowIngredientSearch] = useState(false);
 
   // Categorías predefinidas
   const categories = [
@@ -43,13 +51,25 @@ const ShoppingList = () => {
   ];
 
   useEffect(() => {
+    console.log('ShoppingList: useEffect triggered, fetching list');
     fetchShoppingList();
+    fetchIngredients();
   }, []);
+
+  const fetchIngredients = async () => {
+    try {
+      const response = await axios.get('/api/ingredients');
+      setIngredients(response.data);
+    } catch (err) {
+      console.error('Error fetching ingredients:', err);
+    }
+  };
 
   const fetchShoppingList = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/shopping-list');
+      const response = await axios.get(`/api/shopping-list?_t=${Date.now()}`);
+      console.log('ShoppingList: API Response:', response.data);
       setShoppingList(response.data);
       setError(null);
     } catch (err) {
@@ -80,13 +100,55 @@ const ShoppingList = () => {
         category: ''
       });
       setError(null);
+      setShowIngredientSearch(false);
+      setShowNewIngredientForm(false); // Hide the new ingredient form after adding an item
     } catch (err) {
       setError('Error al añadir el ítem');
       console.error('Error:', err);
     }
   };
 
+  const handleAddNewIngredient = async () => {
+    if (!newItem.name.trim()) {
+      setError('El nombre del ingrediente es obligatorio');
+      return;
+    }
+    try {
+      const response = await axios.post('/api/ingredients', {
+        name: newItem.name,
+        unit: newItem.unit,
+        category: newItem.category
+      });
+      setIngredients(prev => [...prev, response.data]);
+      setNewItem({
+        name: '',
+        quantity: '',
+        unit: '',
+        category: ''
+      });
+      setShowNewIngredientForm(false);
+      setError(null);
+    } catch (err) {
+      setError('Error al añadir ingrediente');
+      console.error('Error:', err);
+    }
+  };
+
+  const handleSelectIngredient = (ingredient) => {
+    setNewItem({
+      name: ingredient.name,
+      quantity: '',
+      unit: ingredient.unit,
+      category: ingredient.category || ''
+    });
+    setIngredientSearch(ingredient.name);
+    setShowIngredientSearch(false);
+  };
+
   const handleDeleteItem = async (itemId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este ítem de la lista?')) {
+      return;
+    }
     try {
       await axios.delete(`/api/shopping-list/manual/${itemId}`);
       setShoppingList(prev => prev.filter(item => item.id !== itemId));
@@ -143,6 +205,11 @@ const ShoppingList = () => {
     }));
   };
 
+  // Filtrar ingredientes basados en la búsqueda
+  const filteredIngredients = ingredients.filter(ing =>
+    ing.name.toLowerCase().includes(ingredientSearch.toLowerCase())
+  );
+
   // Agrupar ítems por categoría
   const groupedItems = shoppingList.reduce((acc, item) => {
     const category = item.category || 'Sin categoría';
@@ -155,45 +222,135 @@ const ShoppingList = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: 48, width: 48, borderTop: '2px solid #2196F3', borderBottom: '2px solid #2196F3', margin: '0 auto' }}></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Lista de la Compra</h1>
+    <div style={{ maxWidth: 700, margin: '30px auto', fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ color: '#2a3d66', letterSpacing: 1 }}>Lista de la Compra</h2>
         <button
           onClick={() => navigate('/meal-planner')}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+          style={{ marginRight: 8, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
         >
           Volver al Planificador
         </button>
       </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
+      {(error || success) && (
+        <div style={error ? errorStyle : successStyle}>{error || success}</div>
       )}
 
-      {/* Formulario para añadir ítems */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-md p-6 mb-8"
-      >
-        <h2 className="text-xl font-semibold mb-4">Añadir ítem manual</h2>
-        <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div style={{ marginBottom: 20, background: '#f9f9f9', padding: 16, borderRadius: 10, boxShadow: '0 2px 8px #e3e8f0' }}>
+        <h3 style={{ color: '#2a3d66', marginBottom: 16 }}>Añadir ítem</h3>
+        
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button
+            onClick={() => {
+              setShowIngredientSearch(!showIngredientSearch);
+              setShowNewIngredientForm(false);
+              setNewItem({ name: '', quantity: '', unit: '', category: '' });
+            }}
+            style={{ flex: 1, background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            <FaSearch style={{ marginRight: 8 }} />
+            {showIngredientSearch ? 'Ocultar búsqueda' : 'Buscar ingrediente existente'}
+          </button>
+          <button
+            onClick={() => {
+              setShowNewIngredientForm(!showNewIngredientForm);
+              setShowIngredientSearch(false);
+              setNewItem({ name: '', quantity: '', unit: '', category: '' });
+            }}
+            style={{ flex: 1, background: '#4CAF50', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer' }}
+          >
+            <FaPlus style={{ marginRight: 8 }} />
+            {showNewIngredientForm ? 'Cancelar nuevo ingrediente' : 'Añadir nuevo ingrediente'}
+          </button>
+        </div>
+
+        {showIngredientSearch && (
+          <div style={{ marginBottom: 16, padding: 16, background: '#e6f7ff', borderRadius: 8, border: '1px solid #91d5ff' }}>
+            <input
+              type="text"
+              value={ingredientSearch}
+              onChange={(e) => setIngredientSearch(e.target.value)}
+              placeholder="Buscar ingrediente por nombre..."
+              style={{ border: '1px solid #bfc8e6', borderRadius: 6, padding: 8, width: '100%', marginBottom: 8 }}
+            />
+            <div style={{ maxHeight: 150, overflowY: 'auto', border: '1px solid #e3e8f0', borderRadius: 6 }}>
+              {filteredIngredients.length > 0 ? (
+                filteredIngredients.map(ingredient => (
+                  <div
+                    key={ingredient.id}
+                    onClick={() => handleSelectIngredient(ingredient)}
+                    style={{ padding: 8, cursor: 'pointer', borderBottom: '1px solid #e3e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onMouseOver={e => e.currentTarget.style.background = '#f0f0f0'}
+                    onMouseOut={e => e.currentTarget.style.background = ''}
+                  >
+                    <span style={{ fontWeight: 'bold' }}>{ingredient.name}</span>
+                    <span style={{ fontSize: '0.9em', color: '#666' }}>{ingredient.unit}</span>
+                  </div>
+                ))
+              ) : (
+                <p style={{ padding: 8, textAlign: 'center', color: '#888' }}>No se encontraron ingredientes.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showNewIngredientForm && (
+          <div style={{ marginBottom: 16, padding: 16, background: '#e6ffe6', borderRadius: 8, border: '1px solid #b2ffb2' }}>
+            <h4 style={{ marginBottom: 16 }}>Nuevo Ingrediente</h4>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              <input
+                type="text"
+                name="name"
+                value={newItem.name}
+                onChange={handleInputChange}
+                placeholder="Nombre del ingrediente"
+                style={{ flex: 1, border: '1px solid #bfc8e6', borderRadius: 6, padding: 8 }}
+                required
+              />
+              <select
+                name="unit"
+                value={newItem.unit}
+                onChange={handleInputChange}
+                style={{ flex: 1, border: '1px solid #bfc8e6', borderRadius: 6, padding: 8 }}
+              >
+                <option value="">Seleccionar unidad</option>
+                {units.map(unit => (<option key={unit} value={unit}>{unit}</option>))}
+              </select>
+              <select
+                name="category"
+                value={newItem.category}
+                onChange={handleInputChange}
+                style={{ flex: 1, border: '1px solid #bfc8e6', borderRadius: 6, padding: 8 }}
+              >
+                <option value="">Seleccionar categoría</option>
+                {categories.map(category => (<option key={category} value={category}>{category}</option>))}
+              </select>
+            </div>
+            <button
+              onClick={handleAddNewIngredient}
+              style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', width: '100%' }}
+            >
+              Guardar ingrediente
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={handleAddItem} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             type="text"
             name="name"
             value={newItem.name}
             onChange={handleInputChange}
             placeholder="Nombre del ítem"
-            className="border rounded p-2"
+            style={{ flex: 2, border: '1px solid #bfc8e6', borderRadius: 6, padding: 8 }}
             required
           />
           <input
@@ -202,115 +359,151 @@ const ShoppingList = () => {
             value={newItem.quantity}
             onChange={handleInputChange}
             placeholder="Cantidad"
-            className="border rounded p-2"
+            style={{ flex: 1, border: '1px solid #bfc8e6', borderRadius: 6, padding: 8 }}
             step="0.01"
+            required
           />
-          <select
+          <input
+            type="text"
             name="unit"
             value={newItem.unit}
             onChange={handleInputChange}
-            className="border rounded p-2"
-          >
-            <option value="">Unidad</option>
-            {units.map(unit => (
-              <option key={unit} value={unit}>{unit}</option>
-            ))}
-          </select>
-          <select
-            name="category"
-            value={newItem.category}
-            onChange={handleInputChange}
-            className="border rounded p-2"
-          >
-            <option value="">Categoría</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+            placeholder="Unidad"
+            list="unitsList"
+            style={{ flex: 1, border: '1px solid #bfc8e6', borderRadius: 6, padding: 8 }}
+          />
+          <datalist id="unitsList">
+            {units.map(unit => <option key={unit} value={unit} />)}
+          </datalist>
           <button
             type="submit"
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center justify-center"
+            style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer' }}
           >
-            <FaPlus className="mr-2" />
-            Añadir
+            <FaPlus style={{ marginRight: 8 }} />
+            Añadir a la lista
           </button>
         </form>
-      </motion.div>
+      </div>
 
-      {/* Lista de la compra */}
-      <div className="space-y-6">
-        {Object.entries(groupedItems).map(([category, items]) => (
-          <motion.div
-            key={category}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow-md p-6"
-          >
-            <h2 className="text-xl font-semibold mb-4">{category}</h2>
-            <div className="space-y-2">
-              {items.map(item => (
-                <div
+      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="text"
+          placeholder="Buscar por nombre o categoría..."
+          value={ingredientSearch} 
+          onChange={e => setIngredientSearch(e.target.value)}
+          style={{ borderRadius: 6, border: '1px solid #bfc8e6', padding: 6, width: 300 }}
+        />
+      </div>
+
+      <table border="0" cellPadding={6} style={{ width: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #e3e8f0' }}>
+        <thead style={{ background: '#e3e8f0' }}>
+          <tr>
+            <th style={{ textAlign: 'left', padding: '8px' }}>Nombre</th>
+            <th style={{ textAlign: 'left', padding: '8px' }}>Cantidad</th>
+            <th style={{ textAlign: 'left', padding: '8px' }}>Unidad</th>
+            <th style={{ textAlign: 'left', padding: '8px' }}>Categoría</th>
+            <th style={{ textAlign: 'center', padding: '8px' }}>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(groupedItems).map(([category, items]) => (
+            <React.Fragment key={category}>
+              <tr>
+                <td colSpan="5" style={{ background: '#f0f4ff', padding: '8px', fontWeight: 'bold', color: '#2a3d66', borderTop: '1px solid #bfc8e6' }}>
+                  {category}
+                </td>
+              </tr>
+              {items.filter(item => 
+                item.name.toLowerCase().includes(ingredientSearch.toLowerCase()) || 
+                (item.category || '').toLowerCase().includes(ingredientSearch.toLowerCase())
+              ).map(item => (
+                <tr 
                   key={item.id || `${item.name}-${item.unit}`}
-                  className={`flex items-center justify-between p-3 rounded-lg ${
-                    item.is_checked ? 'bg-gray-100' : 'bg-white'
-                  } border`}
+                  style={{ background: item.is_checked ? '#e6ffe6' : '#f9f9f9', borderBottom: '1px solid #e3e8f0' }}
                 >
-                  <div className="flex items-center space-x-4">
-                    {item.source === 'manual' && (
-                      <button
-                        onClick={() => handleToggleChecked(item)}
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                          item.is_checked ? 'bg-green-500 border-green-500' : 'border-gray-300'
-                        }`}
-                      >
-                        {item.is_checked && <FaCheck className="text-white" />}
-                      </button>
+                  <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
+                    {editingItem?.id === item.id ? (
+                      <input
+                        type="text"
+                        name="name"
+                        value={editingItem.name}
+                        onChange={handleEditInputChange}
+                        style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
+                      />
+                    ) : (
+                      item.name
                     )}
-                    <div>
-                      <span className={`font-medium ${item.is_checked ? 'line-through text-gray-500' : ''}`}>
-                        {editingItem?.id === item.id ? (
-                          <input
-                            type="text"
-                            name="name"
-                            value={editingItem.name}
-                            onChange={handleEditInputChange}
-                            className="border rounded p-1"
-                          />
-                        ) : (
-                          item.name
-                        )}
-                      </span>
-                      <span className="text-gray-500 ml-2">
-                        {item.total_quantity} {item.unit}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {item.source === 'manual' && (
+                  </td>
+                  <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
+                    {editingItem?.id === item.id ? (
+                      <input
+                        type="number"
+                        name="quantity"
+                        value={editingItem.quantity}
+                        onChange={handleEditInputChange}
+                        style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
+                      />
+                    ) : (
+                      item.total_quantity
+                    )}
+                  </td>
+                  <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
+                    {editingItem?.id === item.id ? (
+                      <input
+                        type="text"
+                        name="unit"
+                        value={editingItem.unit}
+                        onChange={handleEditInputChange}
+                        style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
+                      />
+                    ) : (
+                      item.unit
+                    )}
+                  </td>
+                  <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
+                    {editingItem?.id === item.id ? (
+                      <input
+                        type="text"
+                        name="category"
+                        value={editingItem.category}
+                        onChange={handleEditInputChange}
+                        style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
+                      />
+                    ) : (
+                      item.category
+                    )}
+                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center' }}>
+                    {item.source === 'manual' ? (
                       <>
-                        <button
-                          onClick={() => handleEditItem(item)}
-                          className="text-blue-500 hover:text-blue-700"
-                        >
+                        <button onClick={() => handleToggleChecked(item)} style={{ background: item.is_checked ? '#e57373' : '#4CAF50', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', marginRight: 4 }}>
+                          {item.is_checked ? <FaCheck /> : <FaCheck />}
+                        </button>
+                        <button onClick={() => handleEditItem(item)} style={{ background: '#2a3d66', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', marginRight: 4 }}>
                           <FaEdit />
                         </button>
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
+                        <button onClick={() => handleDeleteItem(item.id)} style={{ background: '#e57373', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}>
                           <FaTrash />
                         </button>
                       </>
+                    ) : (
+                      <button
+                        onClick={() => setError('Los ítems generados desde el planificador no se pueden eliminar ni modificar directamente desde aquí. Elimínalos o edítalos desde el Planificador Semanal si no los necesitas.')}
+                        style={{ background: '#ccc', color: '#666', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'not-allowed' }}
+                        title="Este ítem es generado por el planificador semanal y no puede ser eliminado ni modificado desde aquí."
+                      >
+                        <FaTrash /> <FaEdit />
+                      </button>
                     )}
-                  </div>
-                </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
 
-export default ShoppingList; 
+export default ShoppingList;

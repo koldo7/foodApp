@@ -1,3 +1,5 @@
+Da un error al agregar un nuevo platos y al poner lo automaticamente en la lsita de la compra, revisar el error.
+
 Cosas pendientes:
 Importante:
 -En platos poder seleccionar platos que se quieren preparar para que en "Lista de la Compra" se agregen los ingrediente necesarios.
