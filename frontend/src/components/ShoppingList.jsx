@@ -422,11 +422,11 @@ const ShoppingList = () => {
                   style={{ background: item.is_checked ? '#e6ffe6' : '#f9f9f9', borderBottom: '1px solid #e3e8f0' }}
                 >
                   <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
-                    {editingItem?.id === item.id ? (
+                    {editingItem && editingItem.id === item.id ? (
                       <input
                         type="text"
                         name="name"
-                        value={editingItem.name}
+                        value={editingItem.name || ''}
                         onChange={handleEditInputChange}
                         style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
                       />
@@ -435,11 +435,11 @@ const ShoppingList = () => {
                     )}
                   </td>
                   <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
-                    {editingItem?.id === item.id ? (
+                    {editingItem && editingItem.id === item.id ? (
                       <input
                         type="number"
                         name="quantity"
-                        value={editingItem.quantity}
+                        value={editingItem.quantity || ''}
                         onChange={handleEditInputChange}
                         style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
                       />
@@ -448,11 +448,11 @@ const ShoppingList = () => {
                     )}
                   </td>
                   <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
-                    {editingItem?.id === item.id ? (
+                    {editingItem && editingItem.id === item.id ? (
                       <input
                         type="text"
                         name="unit"
-                        value={editingItem.unit}
+                        value={editingItem.unit || ''}
                         onChange={handleEditInputChange}
                         style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
                       />
@@ -461,11 +461,11 @@ const ShoppingList = () => {
                     )}
                   </td>
                   <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
-                    {editingItem?.id === item.id ? (
+                    {editingItem && editingItem.id === item.id ? (
                       <input
                         type="text"
                         name="category"
-                        value={editingItem.category}
+                        value={editingItem.category || ''}
                         onChange={handleEditInputChange}
                         style={{ border: '1px solid #bfc8e6', borderRadius: 4, padding: 4, width: '100%' }}
                       />
