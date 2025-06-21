@@ -58,4 +58,27 @@ La aplicación de React se abrirá automáticamente en tu navegador, generalment
 
 Para detener ambos servidores, simplemente presiona `Ctrl + C` en la terminal.
 
+---
+
+## Despliegue en Render
+
+Esta aplicación está preparada para ser desplegada como un **Servicio Web** en [Render](https://render.com/).
+
+Sigue estos pasos para desplegarla:
+
+1.  **Crea una cuenta en Render** y conecta tu repositorio de GitHub.
+2.  **Crea un nuevo "Web Service"** y selecciona tu repositorio.
+3.  **Configura el servicio** con los siguientes valores:
+    -   **Entorno (Environment)**: `Node`
+    -   **Comando de Build (Build Command)**: `npm run build`
+    -   **Comando de Inicio (Start Command)**: `npm start`
+
+4.  ¡Haz clic en "Create Web Service" y espera a que el despliegue finalice!
+
+### Nota sobre la Base de Datos
+
+Este proyecto utiliza **SQLite** como base de datos. En plataformas como Render, el sistema de archivos es efímero, lo que significa que **la base de datos se reiniciará con cada despliegue**.
+
+Para una solución persistente, se recomienda migrar a un servicio de base de datos como **PostgreSQL**, que Render ofrece.
+
 ¡Y eso es todo! Ahora deberías poder usar la aplicación localmente. 
