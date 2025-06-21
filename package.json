@@ -2,8 +2,11 @@
   "name": "dovakin",
   "version": "1.0.0",
   "description": "foodApp",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
+    "start": "node src/app.js",
+    "build": "npm install && npm install --prefix frontend && npm run build --prefix frontend",
+    "dev": "concurrently \"npm start\" \"npm run dev --prefix frontend\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -202,5 +205,8 @@
     "wide-align": "^1.1.5",
     "wrappy": "^1.0.2",
     "yallist": "^4.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }
