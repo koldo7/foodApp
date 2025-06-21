@@ -103,7 +103,7 @@ const updateManualItem = async (req, res) => {
 const deleteItemsByDish = async (req, res) => {
   try {
     const userId = req.user.id;
-    const dishId = req.params.dish_id;
+    const dishId = req.params.dishId;
 
     const result = await shoppingListModel.deleteItemsByDish(userId, dishId);
     

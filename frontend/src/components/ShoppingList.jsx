@@ -164,7 +164,7 @@ const ShoppingList = () => {
   const handleToggleChecked = async (item) => {
     try {
       const updatedItem = { ...item, is_checked: !item.is_checked };
-      await axios.put(`/api/shopping-list/manual/${item.id}`, updatedItem);
+      await axios.put(`/api/shopping-list/${item.id}`, updatedItem);
       
       setShoppingList(prev => prev.map(i => 
         i.id === item.id ? updatedItem : i
@@ -179,7 +179,7 @@ const ShoppingList = () => {
   const handleEditItem = async (item) => {
     if (editingItem?.id === item.id) {
       try {
-        await axios.put(`/api/shopping-list/manual/${item.id}`, editingItem);
+        await axios.put(`/api/shopping-list/${item.id}`, editingItem);
         setShoppingList(prev => prev.map(i => 
           i.id === item.id ? editingItem : i
         ));

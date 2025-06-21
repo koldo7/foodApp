@@ -218,7 +218,7 @@ const Planner = () => {
 
       // --- ELIMINAR INGREDIENTES DE LA LISTA DE LA COMPRA ---
       if (dishId) {
-        await axios.delete(`/api/shopping-list/dish/${dishId}`, {
+        await axios.delete(`/api/shopping-list/by-dish/${dishId}`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
       }
