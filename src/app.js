@@ -22,12 +22,13 @@ app.use('/api/meal-plan', mealPlanRoutes);
 app.use('/api/shopping-list', shoppingListRoutes);
 
 // --- Servir Frontend en Producción ---
-// Servir los archivos estáticos de la aplicación de React
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+// Servir los archivos estáticos de la aplicación de React desde la ruta correcta
+const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist');
+app.use(express.static(frontendDistPath));
 
 // Para cualquier otra ruta, servir el index.html de React
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // Ruta de prueba
