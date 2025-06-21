@@ -402,6 +402,7 @@ const ShoppingList = () => {
             <th style={{ textAlign: 'left', padding: '8px' }}>Cantidad</th>
             <th style={{ textAlign: 'left', padding: '8px' }}>Unidad</th>
             <th style={{ textAlign: 'left', padding: '8px' }}>Categoría</th>
+            <th style={{ textAlign: 'left', padding: '8px' }}>Plato</th>
             <th style={{ textAlign: 'center', padding: '8px' }}>Acciones</th>
           </tr>
         </thead>
@@ -409,7 +410,7 @@ const ShoppingList = () => {
           {Object.entries(groupedItems).map(([category, items]) => (
             <React.Fragment key={category}>
               <tr>
-                <td colSpan="5" style={{ background: '#f0f4ff', padding: '8px', fontWeight: 'bold', color: '#2a3d66', borderTop: '1px solid #bfc8e6' }}>
+                <td colSpan="6" style={{ background: '#f0f4ff', padding: '8px', fontWeight: 'bold', color: '#2a3d66', borderTop: '1px solid #bfc8e6' }}>
                   {category}
                 </td>
               </tr>
@@ -472,6 +473,9 @@ const ShoppingList = () => {
                     ) : (
                       item.category
                     )}
+                  </td>
+                  <td style={{ padding: '8px', textDecoration: item.is_checked ? 'line-through' : 'none', color: item.is_checked ? '#888' : '#333' }}>
+                    {item.dish_name || '-'}
                   </td>
                   <td style={{ padding: '8px', textAlign: 'center' }}>
                     {item.source === 'manual' ? (

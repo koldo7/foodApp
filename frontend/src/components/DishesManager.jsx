@@ -201,75 +201,48 @@ export default function DishesManager() {
     });
 
     try {
+      let response;
       if (editId) {
-        await api.put(`/dishes/${editId}`, formData, {
-          headers: { 
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-
-        // Obtener los IDs de los ingredientes actuales
-        const currentIngredientIds = pendingIngredients.map(ing => ing.id);
-        
-        // Obtener los ingredientes actuales del plato
-        const response = await api.get(`/dishes/${editId}/ingredients`);
-        const existingIngredients = response.data;
-
-        // Eliminar ingredientes que ya no están en la lista
-        for (const existingIng of existingIngredients) {
-          if (!currentIngredientIds.includes(existingIng.id)) {
-            await api.delete(`/dishes/${editId}/ingredients/${existingIng.id}`);
-          }
-        }
-
-        // Añadir nuevos ingredientes
-        for (const ingredient of pendingIngredients) {
-          if (!existingIngredients.find(ei => ei.id === ingredient.id)) {
-            await api.post(`/dishes/${editId}/ingredients`, {
-              ingredient_id: ingredient.ingredient_id,
-              quantity: ingredient.quantity,
-              unit: ingredient.unit
-            });
-          }
-        }
-
-        setSuccess('Plato actualizado correctamente.');
+        response = await api.put(`/dishes/${editId}`, formData);
+        setSuccess('Plato actualizado correctamente');
+        await saveDishIngredients(editId, pendingIngredients);
       } else {
-        const response = await api.post('/dishes', formData, {
-          headers: { 
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        response = await api.post('/dishes', formData);
+        setSuccess('Plato creado correctamente');
         const newDishId = response.data.id;
-
-        // Añadir todos los ingredientes pendientes al nuevo plato
-        for (const ingredient of pendingIngredients) {
-          await api.post(`/dishes/${newDishId}/ingredients`, {
-            ingredient_id: ingredient.ingredient_id,
-            quantity: ingredient.quantity,
-            unit: ingredient.unit
-          });
-        }
-
-        setSuccess('Plato creado correctamente con sus ingredientes.');
+        
+        await saveDishIngredients(newDishId, pendingIngredients);
       }
       
-      // Limpiar el formulario y cerrar el modal
       setForm({ name: '', description: '', prep_time: '', cook_time: '', category: '', instructions: '', photo: '' });
       setEditId(null);
       setDishIngredients([]);
       setPendingIngredients([]);
+      setNewDishIng({ ingredient_id: '', quantity: '', unit: '' });
+      fetchDishes();
       setShowModal(false);
-      setShowNewIngredientForm(false);
-      setNewIngredient({ name: '', unit: '' });
-      setIngredientSearch('');
-      setDuplicateNameErrorMessage('');
-      
-      // Actualizar la lista de platos
-      await fetchDishes();
     } catch (err) {
-      console.error('Error al guardar plato:', err);
-      setError('Error al guardar plato: ' + (err.response?.data?.error || err.message));
+      setError(err.response?.data?.error || 'Error al guardar el plato');
+    }
+  };
+
+  const saveDishIngredients = async (dishId, ingredientsToSave) => {
+    try {
+      const existingIngredientsResponse = await api.get(`/dishes/${dishId}/ingredients`);
+      for (const ing of existingIngredientsResponse.data) {
+        await api.delete(`/dishes/${dishId}/ingredients/${ing.id}`);
+      }
+
+      for (const ingredient of ingredientsToSave) {
+        await api.post(`/dishes/${dishId}/ingredients`, {
+          ingredient_id: ingredient.ingredient_id,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit
+        });
+      }
+    } catch (err) {
+      console.error('Error al guardar los ingredientes del plato:', err);
+      setError('Error al guardar los ingredientes del plato');
     }
   };
 

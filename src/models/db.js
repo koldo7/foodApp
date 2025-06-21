@@ -58,8 +58,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
       unit TEXT,
       category TEXT,
       is_checked INTEGER DEFAULT 0,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      dish_id INTEGER,
+      dish_name TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE SET NULL
     )`);
+
+    // Añadir índices
+    db.run(`CREATE INDEX IF NOT EXISTS idx_shopping_list_user_id ON shopping_list_items(user_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_shopping_list_dish_id ON shopping_list_items(dish_id)`);
   }
 });
 

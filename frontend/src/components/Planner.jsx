@@ -169,9 +169,35 @@ const Planner = () => {
       console.log('Adding meal:', { date, slot, dish_id, servings });
       const response = await axios.post('/api/meal-plan', { date, slot, dish_id, servings });
       console.log('Meal added successfully:', response.data);
+      
+      // --- AÑADIR INGREDIENTES A LA LISTA DE LA COMPRA ---
+      const dish = dishes.find(d => d.id === parseInt(dish_id));
+      if (dish) {
+        // Obtener los ingredientes del plato
+        const ingredientsResponse = await axios.get(`/api/dishes/${dish.id}/ingredients`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const ingredients = ingredientsResponse.data;
+
+        // Añadir cada ingrediente a la lista de la compra
+        for (const ingredient of ingredients) {
+          await axios.post('/api/shopping-list/generated', {
+            name: ingredient.name,
+            quantity: ingredient.quantity * servings, // Multiplicar por el número de raciones
+            unit: ingredient.unit,
+            category: ingredient.category,
+            dish_id: dish.id,
+            dish_name: dish.name
+          }, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
+        }
+      }
+      // --- FIN DE LA LÓGICA AÑADIDA ---
+
       setNewMeal({ ...newMeal, [`${date}-${slot}`]: { dish_id: '', servings: '' } });
       fetchMealPlans(currentWeekStart);
-      setSuccess('Comida añadida al planificador.');
+      setSuccess('Comida añadida al planificador y ingredientes actualizados en la lista de la compra.');
     } catch (err) {
       console.error('Error adding meal:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Error al añadir comida');
@@ -181,11 +207,25 @@ const Planner = () => {
   const handleDeleteMeal = async (id) => {
     setError(null); setSuccess(null);
     try {
+      // --- OBTENER EL DISH_ID ANTES DE BORRAR ---
+      const mealToDelete = mealPlans.find(m => m.id === id);
+      const dishId = mealToDelete ? mealToDelete.dish_id : null;
+      // ---
+
       console.log('Deleting meal:', id);
       const response = await axios.delete(`/api/meal-plan/${id}`);
       console.log('Meal deleted successfully:', response.data);
+
+      // --- ELIMINAR INGREDIENTES DE LA LISTA DE LA COMPRA ---
+      if (dishId) {
+        await axios.delete(`/api/shopping-list/dish/${dishId}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+      }
+      // ---
+
       fetchMealPlans(currentWeekStart);
-      setSuccess('Comida eliminada del planificador.');
+      setSuccess('Comida eliminada del planificador y lista de la compra actualizada.');
     } catch (err) {
       console.error('Error deleting meal:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Error al eliminar comida');
