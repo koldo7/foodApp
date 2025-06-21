@@ -150,25 +150,24 @@ const ShoppingList = () => {
       return;
     }
     try {
-      await axios.delete(`/api/shopping-list/manual/${itemId}`);
+      await axios.delete(`/api/shopping-list/${itemId}`);
       setShoppingList(prev => prev.filter(item => item.id !== itemId));
+      setSuccess('Ítem eliminado correctamente.');
       setError(null);
     } catch (err) {
       setError('Error al eliminar el ítem');
+      setSuccess(null);
       console.error('Error:', err);
     }
   };
 
   const handleToggleChecked = async (item) => {
-    if (item.source === 'generated') return; // No permitir marcar ítems generados
-    
     try {
-      await axios.put(`/api/shopping-list/manual/${item.id}`, {
-        ...item,
-        is_checked: !item.is_checked
-      });
+      const updatedItem = { ...item, is_checked: !item.is_checked };
+      await axios.put(`/api/shopping-list/manual/${item.id}`, updatedItem);
+      
       setShoppingList(prev => prev.map(i => 
-        i.id === item.id ? { ...i, is_checked: !i.is_checked } : i
+        i.id === item.id ? updatedItem : i
       ));
       setError(null);
     } catch (err) {
@@ -178,8 +177,6 @@ const ShoppingList = () => {
   };
 
   const handleEditItem = async (item) => {
-    if (item.source === 'generated') return; // No permitir editar ítems generados
-    
     if (editingItem?.id === item.id) {
       try {
         await axios.put(`/api/shopping-list/manual/${item.id}`, editingItem);

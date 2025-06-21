@@ -3,103 +3,34 @@ const db = require('./db');
 // Obtener la lista de la compra para un usuario
 const getShoppingList = (userId) => {
   return new Promise((resolve, reject) => {
-    // Primero verificar si la tabla meal_plans existe
-    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='meal_plans'", (err, result) => {
-      if (err) {
-        console.error('Error checking meal_plans table:', err);
-        reject(err);
-        return;
-      }
-
-      // Si la tabla meal_plans no existe, solo obtener ítems manuales
-      if (!result) {
-        console.log('meal_plans table does not exist, only fetching manual items');
-        getManualItems(userId)
-          .then(manual => resolve(manual))
-          .catch(err => reject(err));
-        return;
-      }
-
-      // Si la tabla existe, obtener tanto ítems generados como manuales
-      const generatedItems = `
-        SELECT 
-          COALESCE(i.name, '') as name,
-          SUM(di.quantity * mp.servings) as total_quantity,
-          COALESCE(di.unit, '') as unit,
-          COALESCE(i.category, '') as category,
-          0 as is_checked,
-          'generated' as source,
-          d.id as dish_id,
-          d.name as dish_name
-        FROM meal_plans mp
-        LEFT JOIN dishes d ON mp.dish_id = d.id
-        LEFT JOIN dish_ingredients di ON d.id = di.dish_id
-        LEFT JOIN ingredients i ON di.ingredient_id = i.id
-        WHERE mp.user_id = ? 
-        AND date(mp.date) >= date('now')
-        GROUP BY i.name, di.unit, i.category, d.id, d.name
-      `;
-
-      console.log('Executing generatedItems query for userId:', userId);
-      console.log('Query:', generatedItems);
-
-      db.all(generatedItems, [userId], (err, generated) => {
-        if (err) {
-          console.error('Error executing generatedItems query:', err);
-          reject(err);
-          return;
-        }
-        console.log('Generated items result (from query):', generated);
-
-        getManualItems(userId)
-          .then(manual => {
-            // Combinar y ordenar los resultados
-            const allItems = [...generated, ...manual].sort((a, b) => {
-              // Primero por categoría
-              if (a.category !== b.category) {
-                return (a.category || '').localeCompare(b.category || '');
-              }
-              // Luego por nombre
-              return a.name.localeCompare(b.name);
-            });
-
-            resolve(allItems);
-          })
-          .catch(err => reject(err));
-      });
-    });
-  });
-};
-
-// Función auxiliar para obtener ítems manuales
-const getManualItems = (userId) => {
-  return new Promise((resolve, reject) => {
-    const manualItems = `
+    // La única fuente de verdad para la lista de la compra es la tabla shopping_list_items.
+    const sql = `
       SELECT 
+        id,
         name,
-        quantity as total_quantity,
+        quantity,
         unit,
         category,
         is_checked,
-        'manual' as source,
-        id,
-        COALESCE(dish_id, NULL) as dish_id,
-        COALESCE(dish_name, NULL) as dish_name
+        dish_id,
+        dish_name,
+        CASE
+          WHEN dish_id IS NOT NULL THEN 'generated'
+          ELSE 'manual'
+        END as source
       FROM shopping_list_items
       WHERE user_id = ?
+      ORDER BY category, name
     `;
-
-    console.log('Executing manualItems query for userId:', userId);
-    console.log('Query:', manualItems);
-
-    db.all(manualItems, [userId], (err, manual) => {
+    
+    db.all(sql, [userId], (err, items) => {
       if (err) {
-        console.error('Error executing manualItems query:', err);
         reject(err);
         return;
       }
-      console.log('Manual items result:', manual);
-      resolve(manual);
+      // Renombrar 'quantity' a 'total_quantity' para mantener la consistencia con el frontend
+      const result = items.map(item => ({ ...item, total_quantity: item.quantity }));
+      resolve(result);
     });
   });
 };
